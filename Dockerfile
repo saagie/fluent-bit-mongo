@@ -10,7 +10,7 @@ RUN go get gopkg.in/mgo.v2
 RUN go get github.com/spaolacci/murmur3
 
 COPY $GO_FILE /$GO_FILE
-RUN go build -buildmode=c-shared -o /$GO_FILE.so $GO_FILE.go
+RUN go build -buildmode=c-shared -o /$GO_FILE.so *.go
 
 ########################################################
 
