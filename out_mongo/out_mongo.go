@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/fluent/fluent-bit-go/output"
 	"gopkg.in/mgo.v2"
+	"os"
 	"strings"
 	"unsafe"
 )
@@ -36,7 +37,7 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	config.host = []string{output.FLBPluginConfigKey(ctx, "host_port")}
 	config.authDatabase = output.FLBPluginConfigKey(ctx, "auth_database")
 	config.username = output.FLBPluginConfigKey(ctx, "username")
-	config.password = output.FLBPluginConfigKey(ctx, "password")
+	config.password = os.Getenv("MONGOPASSWORD")
 	return output.FLB_OK
 }
 
@@ -67,7 +68,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		}
 
 		logDoc, err := recordToDocument(record)
-		if (err != nil) {
+		if err != nil {
 			fmt.Printf("FLB_ERROR: %s\n", err.Error())
 			return output.FLB_ERROR
 		}
