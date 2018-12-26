@@ -10,7 +10,10 @@ import (
 )
 
 type configType struct {
-	connectionString string
+	host             []string
+	authDatabase     string
+	username         string
+	password         string
 	database         string
 	collectionFormat string
 }
@@ -27,9 +30,13 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 // ctx (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(ctx unsafe.Pointer) int {
 	// Example to retrieve an optional configuration parameter
-	config.connectionString = output.FLBPluginConfigKey(ctx, "connection_string")
 	config.database = output.FLBPluginConfigKey(ctx, "database")
 	config.collectionFormat = output.FLBPluginConfigKey(ctx, "collection_format")
+
+	config.host = []string{output.FLBPluginConfigKey(ctx, "host_port")}
+	config.authDatabase = output.FLBPluginConfigKey(ctx, "auth_database")
+	config.username = output.FLBPluginConfigKey(ctx, "username")
+	config.password = output.FLBPluginConfigKey(ctx, "password")
 	return output.FLB_OK
 }
 
@@ -40,7 +47,12 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
-	session, err := mgo.Dial(config.connectionString)
+	session, err := mgo.DialWithInfo(&mgo.DialInfo{
+		Addrs:    config.host,
+		Username: config.username,
+		Password: config.password,
+		Source:   config.authDatabase,
+	})
 	if err != nil {
 		panic(err)
 	}
