@@ -82,6 +82,12 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 			fmt.Printf("FLB_RETRY: %s\n", err.Error())
 			return output.FLB_RETRY
 		}
+
+		err = collection.EnsureIndexKey("job_execution_id")
+		if err != nil {
+			fmt.Printf("FLB_RETRY: %s\n", err.Error())
+			return output.FLB_RETRY
+		}
 	}
 
 	// Return options:
