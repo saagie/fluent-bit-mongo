@@ -13,6 +13,8 @@ type logDocument struct {
 	Time           string        `bson:"time"`
 	JobExecutionId string        `bson:"job_execution_id"`
 	ProjectId      string        `bson:"project_id"`
+	Customer       string        `bson:"customer"`
+	PlatformId     string        `bson:"platform_id"`
 }
 
 func recordToDocument(record map[interface{}]interface{}) (logDocument, error) {
@@ -22,6 +24,8 @@ func recordToDocument(record map[interface{}]interface{}) (logDocument, error) {
 		Time:           extractStringValue(record, "time"),
 		JobExecutionId: extractStringValue(record, "job_execution_id"),
 		ProjectId:      extractStringValue(record, "project_id"),
+		Customer:       extractStringValue(record, "customer"),
+		PlatformId:     extractStringValue(record, "platform_id"),
 	}
 	err := logDoc.generateObjectID()
 	if err != nil {
@@ -48,4 +52,3 @@ func (d *logDocument) generateObjectID() error {
 	d.Id = bson.ObjectIdHex(id)
 	return nil
 }
-

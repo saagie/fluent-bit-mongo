@@ -32,7 +32,6 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 func FLBPluginInit(ctx unsafe.Pointer) int {
 	// Example to retrieve an optional configuration parameter
 	config.database = output.FLBPluginConfigKey(ctx, "database")
-	config.collectionFormat = output.FLBPluginConfigKey(ctx, "collection_format")
 
 	config.host = []string{output.FLBPluginConfigKey(ctx, "host_port")}
 	config.authDatabase = output.FLBPluginConfigKey(ctx, "auth_database")
@@ -73,8 +72,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 			return output.FLB_ERROR
 		}
 
-		projectName := extractStringValue(record, "project_id")
-		collectionName := strings.Replace(fmt.Sprintf(config.collectionFormat, projectName), "-", "_", -1)
+		collectionName := strings.Replace(fmt.Sprintf("%s_%s_%s", logDoc.Customer, logDoc.PlatformId, logDoc.ProjectId), "-", "_", -1)
 		collection := session.DB(config.database).C(collectionName)
 
 		_, err = collection.UpsertId(logDoc.Id, logDoc)
