@@ -14,10 +14,10 @@ RUN go build -buildmode=c-shared -o /$GO_FILE.so *.go
 
 ########################################################
 
-FROM fluent/fluent-bit:0.14.9 
+FROM fluent/fluent-bit:1.2.1
 ARG GO_FILE=out_mongo
 ENV PLUGIN_FILE /${GO_FILE}.so
 
 COPY --from=buildplugin $PLUGIN_FILE $PLUGIN_FILE
 
-CMD ["sh","-c","/fluent-bit/bin/fluent-bit -c /fluent-bit/etc/fluent-bit.conf -e $PLUGIN_FILE"]
+CMD ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf","-e","/out_mongo.so"]
