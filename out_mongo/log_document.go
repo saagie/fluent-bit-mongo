@@ -12,6 +12,7 @@ type logDocument struct {
 	Stream         string        `bson:"stream"`
 	Time           string        `bson:"time"`
 	JobExecutionId string        `bson:"job_execution_id"`
+	TryId          string        `bson:"try_id"`
 	ProjectId      string        `bson:"project_id"`
 	Customer       string        `bson:"customer"`
 	PlatformId     string        `bson:"platform_id"`
@@ -23,6 +24,7 @@ func recordToDocument(record map[interface{}]interface{}) (logDocument, error) {
 		Stream:         extractStringValue(record, "stream"),
 		Time:           extractStringValue(record, "time"),
 		JobExecutionId: extractStringValue(record, "job_execution_id"),
+		TryId:          extractStringValue(record, "try_id"),
 		ProjectId:      extractStringValue(record, "project_id"),
 		Customer:       extractStringValue(record, "customer"),
 		PlatformId:     extractStringValue(record, "platform_id"),
