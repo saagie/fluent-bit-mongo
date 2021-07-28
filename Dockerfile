@@ -1,23 +1,16 @@
-FROM golang:1.11.3-stretch as buildplugin
+FROM golang:1.16 as builder
 
 ARG GO_FILE=out_mongo
 
-WORKDIR /$GO_FILE
+WORKDIR /go/src
 
-RUN go get github.com/fluent/fluent-bit-go/output
-RUN go get github.com/ugorji/go/codec
-RUN go get gopkg.in/mgo.v2
-RUN go get github.com/spaolacci/murmur3
-
-COPY $GO_FILE /$GO_FILE
-RUN go build -buildmode=c-shared -o /$GO_FILE.so *.go
+COPY . .
+RUN go build -buildmode=c-shared -o /go/bin/out_mongo.so *.go
 
 ########################################################
 
 FROM fluent/fluent-bit:1.2.1
-ARG GO_FILE=out_mongo
-ENV PLUGIN_FILE /${GO_FILE}.so
 
-COPY --from=buildplugin $PLUGIN_FILE $PLUGIN_FILE
+COPY --from=builder /go/bin/out_mongo.so /out_mongo.so
 
 CMD ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf","-e","/out_mongo.so"]

@@ -1,13 +1,14 @@
-package main
+package document
 
 import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/saagie/fluent-bit-mongo/pkg/parse"
 	"gopkg.in/mgo.v2/bson"
 )
 
-type logDocument struct {
+type Document struct {
 	Id             bson.ObjectId `bson:"_id,omitempty"`
 	Log            string        `bson:"log"`
 	Stream         string        `bson:"stream"`
@@ -18,30 +19,30 @@ type logDocument struct {
 	PlatformId     string        `bson:"platform_id"`
 }
 
-func recordToDocument(record map[interface{}]interface{}) (logDocument, error) {
-	logDoc := logDocument{
-		Log:            extractStringValue(record, "log"),
-		Stream:         extractStringValue(record, "stream"),
-		Time:           extractStringValue(record, "time"),
-		JobExecutionId: extractStringValue(record, "job_execution_id"),
-		ProjectId:      extractStringValue(record, "project_id"),
-		Customer:       extractStringValue(record, "customer"),
-		PlatformId:     extractStringValue(record, "platform_id"),
+func RecordToDocument(record map[interface{}]interface{}) (Document, error) {
+	doc := Document{
+		Log:            parse.ExtractStringValue(record, "log"),
+		Stream:         parse.ExtractStringValue(record, "stream"),
+		Time:           parse.ExtractStringValue(record, "time"),
+		JobExecutionId: parse.ExtractStringValue(record, "job_execution_id"),
+		ProjectId:      parse.ExtractStringValue(record, "project_id"),
+		Customer:       parse.ExtractStringValue(record, "customer"),
+		PlatformId:     parse.ExtractStringValue(record, "platform_id"),
 	}
-	err := logDoc.generateObjectID()
+	err := doc.generateObjectID()
 	if err != nil {
-		return logDocument{}, err
+		return Document{}, err
 	}
-	return logDoc, nil
+	return doc, nil
 }
 
-func (d *logDocument) generateObjectID() error {
+func (d *Document) generateObjectID() error {
 	logJson, err := json.Marshal(d)
 	if err != nil {
 		return err
 	}
 
-	h64bytes, h32bytes, err := getHashesFromBytes(logJson)
+	h64bytes, h32bytes, err := parse.GetHashesFromBytes(logJson)
 	if err != nil {
 		return err
 	}
