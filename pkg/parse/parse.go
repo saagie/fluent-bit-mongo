@@ -1,6 +1,8 @@
 package parse
 
 import (
+	"fmt"
+
 	"github.com/saagie/fluent-bit-mongo/pkg/convert"
 	"github.com/spaolacci/murmur3"
 )
@@ -21,5 +23,10 @@ func GetHashesFromBytes(data []byte) ([]byte, []byte, error) {
 }
 
 func ExtractStringValue(m map[interface{}]interface{}, k string) string {
-	return string(m[k].([]uint8))
+	value, ok := m[k]
+	if !ok {
+		panic(fmt.Errorf("key %s not found", k))
+	}
+
+	return string(value.([]byte))
 }
