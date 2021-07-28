@@ -8,19 +8,12 @@ import (
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
+	"github.com/saagie/fluent-bit-mongo/pkg/config"
+	"github.com/saagie/fluent-bit-mongo/pkg/document"
 	"gopkg.in/mgo.v2"
 )
 
-type configType struct {
-	host             []string
-	authDatabase     string
-	username         string
-	password         string
-	database         string
-	collectionFormat string
-}
-
-var config = configType{}
+var mongoConfig = config.Config{}
 
 //export FLBPluginRegister
 func FLBPluginRegister(ctx unsafe.Pointer) int {
@@ -32,12 +25,12 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 // ctx (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(ctx unsafe.Pointer) int {
 	// Example to retrieve an optional configuration parameter
-	config.database = output.FLBPluginConfigKey(ctx, "database")
+	mongoConfig.Database = output.FLBPluginConfigKey(ctx, "database")
 
-	config.host = []string{output.FLBPluginConfigKey(ctx, "host_port")}
-	config.authDatabase = output.FLBPluginConfigKey(ctx, "auth_database")
-	config.username = output.FLBPluginConfigKey(ctx, "username")
-	config.password = os.Getenv("MONGOPASSWORD")
+	mongoConfig.Host = []string{output.FLBPluginConfigKey(ctx, "host_port")}
+	mongoConfig.AuthDatabase = output.FLBPluginConfigKey(ctx, "auth_database")
+	mongoConfig.Username = output.FLBPluginConfigKey(ctx, "username")
+	mongoConfig.Password = os.Getenv("MONGOPASSWORD")
 	return output.FLB_OK
 }
 
@@ -49,10 +42,10 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
 	session, err := mgo.DialWithInfo(&mgo.DialInfo{
-		Addrs:    config.host,
-		Username: config.username,
-		Password: config.password,
-		Source:   config.authDatabase,
+		Addrs:    mongoConfig.Host,
+		Username: mongoConfig.Username,
+		Password: mongoConfig.Password,
+		Source:   mongoConfig.AuthDatabase,
 	})
 	if err != nil {
 		panic(err)
@@ -67,14 +60,14 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 			break
 		}
 
-		logDoc, err := recordToDocument(record)
+		logDoc, err := document.RecordToDocument(record)
 		if err != nil {
 			fmt.Printf("FLB_ERROR: %s\n", err.Error())
 			return output.FLB_ERROR
 		}
 
 		collectionName := strings.Replace(fmt.Sprintf("%s_%s_%s", logDoc.Customer, logDoc.PlatformId, logDoc.ProjectId), "-", "_", -1)
-		collection := session.DB(config.database).C(collectionName)
+		collection := session.DB(mongoConfig.Database).C(collectionName)
 
 		_, err = collection.UpsertId(logDoc.Id, logDoc)
 		if err != nil {
