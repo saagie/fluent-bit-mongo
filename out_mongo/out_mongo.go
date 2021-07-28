@@ -3,11 +3,12 @@ package main
 import (
 	"C"
 	"fmt"
-	"github.com/fluent/fluent-bit-go/output"
-	"gopkg.in/mgo.v2"
 	"os"
 	"strings"
 	"unsafe"
+
+	"github.com/fluent/fluent-bit-go/output"
+	"gopkg.in/mgo.v2"
 )
 
 type configType struct {
