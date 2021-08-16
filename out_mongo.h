@@ -62,6 +62,8 @@ extern GoInt FLBPluginInit(void* p0);
 
 extern GoInt FLBPluginFlush(void* p0, int p1, char* p2);
 
+extern GoInt FLBPluginFlushCtx(void* p0, void* p1, int p2, char* p3);
+
 extern GoInt FLBPluginExit();
 
 #ifdef __cplusplus
