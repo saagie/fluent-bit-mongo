@@ -8,18 +8,38 @@ import (
 	"github.com/fluent/fluent-bit-go/output"
 	"github.com/saagie/fluent-bit-mongo/pkg/config"
 	"github.com/saagie/fluent-bit-mongo/pkg/document"
+	"github.com/saagie/fluent-bit-mongo/pkg/log"
 	"gopkg.in/mgo.v2"
 )
 
+const PluginID = "mongo"
+
+var logger log.Logger
+
+func init() {
+	l, err := log.New(log.OutputPlugin, PluginID)
+	if err != nil {
+		panic(fmt.Errorf("new logger: %w", err))
+	}
+
+	logger = l
+
+	logger.Debug("Logger initialized", nil)
+}
+
 //export FLBPluginRegister
 func FLBPluginRegister(ctx unsafe.Pointer) int {
-	return output.FLBPluginRegister(ctx, "mongo", "Go mongo go")
+	logger.Debug("Registering plugin", nil)
+
+	return output.FLBPluginRegister(ctx, PluginID, "Go mongo go")
 }
 
 //export FLBPluginInit
 // (fluentbit will call this)
 // ctx (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(ctx unsafe.Pointer) int {
+	logger.Info("Initializing plugin", nil)
+
 	output.FLBPluginSetContext(ctx, config.GetConfig(ctx))
 
 	return output.FLB_OK
@@ -43,8 +63,18 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 	session, err := mgo.DialWithInfo(config)
 	if err != nil {
-		panic(err)
+		logger.Error("Failed to connect to mongo", map[string]interface{}{
+			"hosts":         config.Addrs,
+			"user":          config.Username,
+			"source":        config.Source,
+			"database":      config.Database,
+			"with_password": config.Password != "",
+			"error":         err,
+		})
+
+		return output.FLB_RETRY
 	}
+
 	defer session.Close()
 
 	// Iterate Records
@@ -57,14 +87,26 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 		logDoc, err := document.RecordToDocument(record)
 		if err != nil {
-			fmt.Printf("FLB_ERROR: %s\n", err.Error())
+			logger.Error("Failed to convert record to document", map[string]interface{}{
+				"error": err,
+			})
+
 			return output.FLB_ERROR
 		}
 
 		collection := session.DB(MongoDefaultDB).C(logDoc.CollectionName())
 
+		logger.Debug("Flushing to mongo", map[string]interface{}{
+			"document.id": logDoc.Id,
+		})
+
 		if err := logDoc.SaveTo(collection); err != nil {
-			fmt.Printf("FLB_RETRY: %s\n", err.Error())
+			logger.Error("Failed to save document", map[string]interface{}{
+				"document":   logDoc,
+				"collection": collection.FullName,
+				"error":      err,
+			})
+
 			return output.FLB_RETRY
 		}
 	}
