@@ -3,7 +3,6 @@ package main
 import (
 	"C"
 	"fmt"
-	"strings"
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
@@ -62,17 +61,9 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			return output.FLB_ERROR
 		}
 
-		collectionName := strings.Replace(fmt.Sprintf("%s_%s_%s", logDoc.Customer, logDoc.PlatformId, logDoc.ProjectId), "-", "_", -1)
-		collection := session.DB(MongoDefaultDB).C(collectionName)
+		collection := session.DB(MongoDefaultDB).C(logDoc.CollectionName())
 
-		_, err = collection.UpsertId(logDoc.Id, logDoc)
-		if err != nil {
-			fmt.Printf("FLB_RETRY: %s\n", err.Error())
-			return output.FLB_RETRY
-		}
-
-		err = collection.EnsureIndexKey("job_execution_id", "time")
-		if err != nil {
+		if err := logDoc.SaveTo(collection); err != nil {
 			fmt.Printf("FLB_RETRY: %s\n", err.Error())
 			return output.FLB_RETRY
 		}
