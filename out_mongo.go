@@ -94,6 +94,3 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 func FLBPluginExit() int {
 	return output.FLB_OK
 }
-
-func main() {
-}
