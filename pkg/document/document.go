@@ -3,8 +3,10 @@ package document
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/saagie/fluent-bit-mongo/pkg/parse"
+	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -33,6 +35,7 @@ func RecordToDocument(record map[interface{}]interface{}) (Document, error) {
 	if err != nil {
 		return Document{}, err
 	}
+
 	return doc, nil
 }
 
@@ -52,5 +55,24 @@ func (d *Document) generateObjectID() error {
 		h32bytes[0], h32bytes[1], h32bytes[2], h32bytes[3],
 	)
 	d.Id = bson.ObjectIdHex(id)
+	return nil
+}
+
+func (d *Document) CollectionName() string {
+	return strings.Replace(fmt.Sprintf("%s_%s_%s", d.Customer, d.PlatformId, d.ProjectId), "-", "_", -1)
+}
+
+func (d *Document) SaveTo(collection *mgo.Collection) error {
+	_, err := collection.UpsertId(d.Id, d)
+	if err != nil {
+		return fmt.Errorf("upsert: %w", err)
+	}
+
+	indexes := []string{"job_execution_id", "time"}
+	err = collection.EnsureIndexKey(indexes...)
+	if err != nil {
+		return fmt.Errorf("ensure indexes %v: %v\n", indexes, err)
+	}
+
 	return nil
 }
