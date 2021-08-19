@@ -63,15 +63,14 @@ func (d *Document) CollectionName() string {
 }
 
 func (d *Document) SaveTo(collection *mgo.Collection) error {
-	_, err := collection.UpsertId(d.Id, d)
-	if err != nil {
-		return fmt.Errorf("upsert: %w", err)
+	if _, err := collection.UpsertId(d.Id, d); err != nil {
+		return fmt.Errorf("upsert %s: %w", d.Id, err)
 	}
 
 	indexes := []string{"job_execution_id", "time"}
-	err = collection.EnsureIndexKey(indexes...)
-	if err != nil {
-		return fmt.Errorf("ensure indexes %v: %v\n", indexes, err)
+
+	if err := collection.EnsureIndexKey(indexes...); err != nil {
+		return fmt.Errorf("ensure indexes %v: %w", indexes, err)
 	}
 
 	return nil
