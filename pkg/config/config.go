@@ -5,7 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
-	"gopkg.in/mgo.v2"
+	mgo "gopkg.in/mgo.v2"
 )
 
 func GetAddress(ctx unsafe.Pointer) string {

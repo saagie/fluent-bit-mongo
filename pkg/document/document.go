@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/saagie/fluent-bit-mongo/pkg/parse"
-	"gopkg.in/mgo.v2"
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
