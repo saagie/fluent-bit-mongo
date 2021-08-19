@@ -1,0 +1,17 @@
+name: Release
+
+on:
+  # Triggers the workflow on tag push events
+  push:
+    tags: [ '*' ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: goreleaser/goreleaser-action@v2.7.0
