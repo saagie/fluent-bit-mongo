@@ -173,13 +173,11 @@ func (enc *Encoder) AppendKey(key string) {
 }
 
 func (enc *Encoder) AppendArray(marshaler zapcore.ArrayMarshaler) error {
-	marshaler.MarshalLogArray(enc)
-	return nil
+	return marshaler.MarshalLogArray(enc)
 }
 
 func (enc *Encoder) AppendObject(marshaler zapcore.ObjectMarshaler) error {
-	marshaler.MarshalLogObject(enc)
-	return nil
+	return marshaler.MarshalLogObject(enc)
 }
 
 func (enc *Encoder) AppendReflected(object interface{}) error {

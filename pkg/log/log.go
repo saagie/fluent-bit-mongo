@@ -33,14 +33,21 @@ func New(t PluginType, name string) (Logger, error) {
 	level := zapcore.InfoLevel
 	levelStr := os.Getenv(FluentBitLogLevelEnvironment)
 	if levelStr == "" {
-		level.UnmarshalText([]byte(levelStr))
+		if err := level.UnmarshalText([]byte(levelStr)); err != nil {
+			return nil, fmt.Errorf("invalid level %s: %w", levelStr, err)
+		}
 	}
 	zc.Level = zap.NewAtomicLevelAt(level)
 	zc.DisableStacktrace = true
 
+	var err error
 	registerEncoderOnce.Do(func() {
-		zap.RegisterEncoder("fluent-bit", encoder.New)
+		err = zap.RegisterEncoder("fluent-bit", encoder.New)
 	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot register fluent-bit encoder: %w", err)
+	}
+
 	zc.Encoding = "fluent-bit"
 
 	z, err := zc.Build()

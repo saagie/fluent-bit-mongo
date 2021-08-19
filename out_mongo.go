@@ -9,7 +9,7 @@ import (
 	"github.com/saagie/fluent-bit-mongo/pkg/config"
 	"github.com/saagie/fluent-bit-mongo/pkg/document"
 	"github.com/saagie/fluent-bit-mongo/pkg/log"
-	"gopkg.in/mgo.v2"
+	mgo "gopkg.in/mgo.v2"
 )
 
 const PluginID = "mongo"
