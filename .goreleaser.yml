@@ -1,0 +1,24 @@
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - skip: true
+
+dockers:
+  - image_templates:
+    - saagie/fluent-bit-mongo:{{ .Tag }}
+    extra_files:
+    - go.mod
+    - go.sum
+    - main.go
+    - out_mongo.go
+    - pkg
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
