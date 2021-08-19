@@ -85,7 +85,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			break
 		}
 
-		logDoc, err := document.RecordToDocument(record)
+		logDoc, err := document.New(record)
 		if err != nil {
 			logger.Error("Failed to convert record to document", map[string]interface{}{
 				"error": err,
