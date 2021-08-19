@@ -11,9 +11,25 @@ on:
   workflow_dispatch:
 
 jobs:
-  check:
+  golangci-lint:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
       - uses: golangci/golangci-lint-action@v2.5.2
+
+  goreleaser:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: goreleaser/goreleaser-action@v2.7.0
+        with:
+          args: check
+
+  hadolint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hadolint/hadolint-action@v1.5.0
