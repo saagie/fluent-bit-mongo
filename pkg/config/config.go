@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
@@ -17,7 +16,7 @@ func GetUsername(ctx unsafe.Pointer) string {
 }
 
 func GetPassword(ctx unsafe.Pointer) string {
-	return os.Getenv("MONGOPASSWORD")
+	return output.FLBPluginConfigKey(ctx, "password")
 }
 
 func GetSource(ctx unsafe.Pointer) string {

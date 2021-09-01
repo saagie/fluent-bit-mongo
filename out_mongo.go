@@ -2,74 +2,108 @@ package main
 
 import (
 	"C"
+	"context"
+	"errors"
 	"fmt"
+	"time"
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
 	"github.com/saagie/fluent-bit-mongo/pkg/config"
-	"github.com/saagie/fluent-bit-mongo/pkg/document"
+	flbcontext "github.com/saagie/fluent-bit-mongo/pkg/context"
+	"github.com/saagie/fluent-bit-mongo/pkg/entry"
+	"github.com/saagie/fluent-bit-mongo/pkg/entry/mongo"
 	"github.com/saagie/fluent-bit-mongo/pkg/log"
+	"golang.org/x/sync/errgroup"
 	mgo "gopkg.in/mgo.v2"
 )
 
 const PluginID = "mongo"
 
-var logger log.Logger
-
-func init() {
-	l, err := log.New(log.OutputPlugin, PluginID)
+//export FLBPluginRegister
+func FLBPluginRegister(ctxPointer unsafe.Pointer) int {
+	logger, err := log.New(log.OutputPlugin, PluginID)
 	if err != nil {
-		panic(fmt.Errorf("new logger: %w", err))
+		fmt.Printf("error initializing logger: %s\n", err)
+
+		return output.FLB_ERROR
 	}
 
-	logger = l
+	logger.Info("Registering plugin", nil)
 
-	logger.Debug("Logger initialized", nil)
-}
+	result := output.FLBPluginRegister(ctxPointer, PluginID, "Go mongo go")
 
-//export FLBPluginRegister
-func FLBPluginRegister(ctx unsafe.Pointer) int {
-	logger.Debug("Registering plugin", nil)
+	switch result {
+	case output.FLB_OK:
+		flbcontext.Set(ctxPointer, &flbcontext.Value{
+			Logger: logger,
+		})
+	default:
+		// nothing to do
+	}
 
-	return output.FLBPluginRegister(ctx, PluginID, "Go mongo go")
+	return result
 }
 
 //export FLBPluginInit
 // (fluentbit will call this)
 // ctx (context) pointer to fluentbit context (state/ c code)
-func FLBPluginInit(ctx unsafe.Pointer) int {
-	logger.Info("Initializing plugin", nil)
+func FLBPluginInit(ctxPointer unsafe.Pointer) int {
+	value, err := flbcontext.Get(ctxPointer)
+	if err != nil {
+		logger, err := log.New(log.OutputPlugin, PluginID)
+		if err != nil {
+			fmt.Printf("error initializing logger: %s\n", err)
 
-	output.FLBPluginSetContext(ctx, config.GetConfig(ctx))
+			return output.FLB_ERROR
+		}
+
+		logger.Info("New logger initialized", nil)
+
+		value.Logger = logger
+	}
+
+	value.Logger.Info("Initializing plugin", nil)
+
+	value.Config = config.GetConfig(ctxPointer)
+
+	flbcontext.Set(ctxPointer, value)
 
 	return output.FLB_OK
 }
 
 //export FLBPluginFlush
 func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
-	return output.FLB_ERROR
+	panic(errors.New("not supported call"))
 }
 
-const MongoDefaultDB = ""
-
 //export FLBPluginFlushCtx
-func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int {
-	var ret int
-	var record map[interface{}]interface{}
+func FLBPluginFlushCtx(ctxPointer, data unsafe.Pointer, length C.int, tag *C.char) (result int) {
+	value, err := flbcontext.Get(ctxPointer)
+	if err != nil {
+		fmt.Printf("error getting value: %s\n", err)
 
-	// Create Fluent Bit decoder
-	dec := output.NewDecoder(data, int(length))
-	config := output.FLBPluginGetContext(ctx).(*mgo.DialInfo)
+		return output.FLB_ERROR
+	}
+
+	logger := value.Logger
+	ctx := log.WithLogger(context.TODO(), logger)
+
+	// Open mongo session
+	config := value.Config.(*mgo.DialInfo)
+
+	logger.Info("Connecting to mongodb", map[string]interface{}{
+		"hosts":         config.Addrs,
+		"user":          config.Username,
+		"source":        config.Source,
+		"database":      config.Database,
+		"with_password": config.Password != "",
+	})
 
 	session, err := mgo.DialWithInfo(config)
 	if err != nil {
-		logger.Error("Failed to connect to mongo", map[string]interface{}{
-			"hosts":         config.Addrs,
-			"user":          config.Username,
-			"source":        config.Source,
-			"database":      config.Database,
-			"with_password": config.Password != "",
-			"error":         err,
+		logger.Error("Failed to connect to mongodb", map[string]interface{}{
+			"error": err,
 		})
 
 		return output.FLB_RETRY
@@ -77,38 +111,19 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 	defer session.Close()
 
-	// Iterate Records
-	for {
-		// Extract Record
-		ret, _, record = output.GetRecord(dec)
-		if ret != 0 {
-			break
-		}
+	dec := output.NewDecoder(data, int(length)) // Create Fluent Bit decoder
+	processor := mongo.New(session)
 
-		logDoc, err := document.New(record)
-		if err != nil {
-			logger.Error("Failed to convert record to document", map[string]interface{}{
-				"error": err,
-			})
-
-			return output.FLB_ERROR
-		}
-
-		collection := session.DB(MongoDefaultDB).C(logDoc.CollectionName())
-
-		logger.Debug("Flushing to mongo", map[string]interface{}{
-			"document.id": logDoc.Id,
+	if err := ProcessAll(ctx, dec, processor); err != nil {
+		logger.Error("Failed to process logs", map[string]interface{}{
+			"error": err,
 		})
 
-		if err := logDoc.SaveTo(collection); err != nil {
-			logger.Error("Failed to save document", map[string]interface{}{
-				"document":   logDoc,
-				"collection": collection.FullName,
-				"error":      err,
-			})
-
+		if errors.Is(err, &entry.ErrRetry{}) {
 			return output.FLB_RETRY
 		}
+
+		return output.FLB_ERROR
 	}
 
 	// Return options:
@@ -117,6 +132,48 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 	// output.FLB_ERROR = unrecoverable error, do not try this again.
 	// output.FLB_RETRY = retry to flush later.
 	return output.FLB_OK
+}
+
+func ProcessAll(ctx context.Context, dec *output.FLBDecoder, processor entry.Processor) error {
+	g, ctx := errgroup.WithContext(ctx)
+
+	// For log purpose
+	startTime := time.Now()
+	total := 0
+	logger, err := log.GetLogger(ctx)
+	if err != nil {
+		return fmt.Errorf("get logger: %w", err)
+	}
+
+	// Iterate Records
+	for {
+		total++
+
+		// Extract Record
+		record, err := entry.GetRecord(dec)
+		if err != nil {
+			if errors.Is(err, entry.ErrNoRecord) {
+				logger.Info("Records flushed", map[string]interface{}{
+					"count":    total,
+					"duration": time.Since(startTime),
+				})
+
+				break
+			}
+
+			return fmt.Errorf("get record: %w", err)
+		}
+
+		//g.Go(func() error {
+		if err := processor.ProcessRecord(ctx, record); err != nil {
+			return fmt.Errorf("process record: %w", err)
+		}
+
+		//return nil
+		//})
+	}
+
+	return g.Wait()
 }
 
 //export FLBPluginExit

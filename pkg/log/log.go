@@ -1,6 +1,7 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -28,6 +29,10 @@ type logger struct {
 var registerEncoderOnce sync.Once
 
 func New(t PluginType, name string) (Logger, error) {
+	if len(name) == 0 {
+		return nil, errors.New("empty name")
+	}
+
 	zc := zap.NewProductionConfig()
 
 	level := zapcore.InfoLevel
@@ -74,6 +79,7 @@ func (l *logger) Error(message string, args map[string]interface{}) {
 	var err error
 	if err2, ok := args["error"]; ok {
 		err = err2.(error)
+		delete(args, "error")
 	}
 
 	l.log.Error(err, message, l.argsToMeta(args)...)
