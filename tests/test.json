@@ -1,0 +1,1 @@
+{ "job_execution_id": "the-job-id", "platform_id": "the-platform-id", "customer": "the-customer-id", "project_id": "the-project-id", "type": "job", "log": "I should be processed" }

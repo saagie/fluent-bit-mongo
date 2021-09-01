@@ -1,4 +1,4 @@
-package document
+package mongo
 
 import (
 	"encoding/json"
@@ -22,7 +22,7 @@ type Document struct {
 	PlatformId     string        `bson:"platform_id"`
 }
 
-func New(record map[interface{}]interface{}) (*Document, error) {
+func Convert(record map[interface{}]interface{}) (*Document, error) {
 	doc := &Document{}
 
 	if err := doc.Populate(record); err != nil {
@@ -41,40 +41,54 @@ func New(record map[interface{}]interface{}) (*Document, error) {
 	return doc, nil
 }
 
+const (
+	LogKey            = "log"
+	StreamKey         = "stream"
+	TimeKey           = "time"
+	JobExecutionIDKey = "job_execution_id"
+	ProjectIDKey      = "project_id"
+	CustomerKey       = "customer"
+	PlatformIDKey     = "platform_id"
+)
+
 func (d *Document) Populate(record map[interface{}]interface{}) (err error) {
-	d.Log, err = parse.ExtractStringValue(record, "log")
+	d.Log, err = parse.ExtractStringValue(record, LogKey)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", "log", err)
+		return fmt.Errorf("parse %s: %w", LogKey, err)
 	}
 
-	d.Stream, err = parse.ExtractStringValue(record, "stream")
+	d.Stream, err = parse.ExtractStringValue(record, StreamKey)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", "stream", err)
+		if !errors.Is(err, parse.ErrKeyNotFound) {
+			return fmt.Errorf("parse %s: %w", StreamKey, err)
+		}
+
+		d.Stream = "stdout"
 	}
 
-	d.Time, err = parse.ExtractStringValue(record, "time")
-	if err != nil {
-		return fmt.Errorf("parse %s: %w", "time", err)
+	d.Time, err = parse.ExtractStringValue(record, TimeKey)
+	if err != nil && !errors.Is(err, parse.ErrKeyNotFound) {
+		return fmt.Errorf("parse %s: %w", TimeKey, err)
 	}
 
-	d.JobExecutionId, err = parse.ExtractStringValue(record, "job_execution_id")
+	d.JobExecutionId, err = parse.ExtractStringValue(record, JobExecutionIDKey)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", "job_execution_id", err)
+		return fmt.Errorf("parse %s: %w", JobExecutionIDKey, err)
 	}
 
-	d.ProjectId, err = parse.ExtractStringValue(record, "project_id")
+	d.ProjectId, err = parse.ExtractStringValue(record, ProjectIDKey)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", "project_id", err)
+		return fmt.Errorf("parse %s: %w", ProjectIDKey, err)
 	}
 
-	d.Customer, err = parse.ExtractStringValue(record, "customer")
+	d.Customer, err = parse.ExtractStringValue(record, CustomerKey)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", "customer", err)
+		return fmt.Errorf("parse %s: %w", CustomerKey, err)
 	}
 
-	d.PlatformId, err = parse.ExtractStringValue(record, "platform_id")
+	d.PlatformId, err = parse.ExtractStringValue(record, PlatformIDKey)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", "platform_id", err)
+		return fmt.Errorf("parse %s: %w", PlatformIDKey, err)
 	}
 
 	return d.generateObjectID()
