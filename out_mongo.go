@@ -147,8 +147,6 @@ func ProcessAll(ctx context.Context, dec *output.FLBDecoder, processor entry.Pro
 
 	// Iterate Records
 	for {
-		total++
-
 		// Extract Record
 		record, err := entry.GetRecord(dec)
 		if err != nil {
@@ -163,6 +161,8 @@ func ProcessAll(ctx context.Context, dec *output.FLBDecoder, processor entry.Pro
 
 			return fmt.Errorf("get record: %w", err)
 		}
+
+		total++
 
 		//g.Go(func() error {
 		if err := processor.ProcessRecord(ctx, record); err != nil {
