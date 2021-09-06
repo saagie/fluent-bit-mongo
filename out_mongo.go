@@ -153,7 +153,7 @@ func ProcessAll(ctx context.Context, dec *output.FLBDecoder, processor entry.Pro
 		record, err := entry.GetRecord(dec)
 		if err != nil {
 			if errors.Is(err, entry.ErrNoRecord) {
-				logger.Info("Records flushed", map[string]interface{}{
+				logger.Debug("Records flushed", map[string]interface{}{
 					"count":    total,
 					"duration": time.Since(startTime),
 				})
