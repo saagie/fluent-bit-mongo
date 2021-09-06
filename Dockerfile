@@ -5,7 +5,7 @@ ARG GO_FILE=out_mongo
 WORKDIR /go/src
 
 COPY . .
-RUN go build -buildmode=c-shared -o /go/bin/out_mongo.so *.go
+RUN go build -buildmode=c-shared -o /go/bin/out_mongo.so -- *.go
 
 ########################################################
 
