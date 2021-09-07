@@ -38,7 +38,7 @@ var _ = Describe("Convert document", func() {
 		})
 
 		It("Should work", func() {
-			d, err := mongo.Convert(entry)
+			d, err := mongo.Convert(time.Now(), entry)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(d).ToNot(BeNil())
 
@@ -64,7 +64,7 @@ var _ = Describe("Convert document", func() {
 		DescribeTable("Field", func(field string, ok bool) {
 			delete(entry, field)
 
-			d, err := mongo.Convert(entry)
+			d, err := mongo.Convert(time.Now(), entry)
 
 			if ok {
 				Expect(err).ToNot(HaveOccurred())

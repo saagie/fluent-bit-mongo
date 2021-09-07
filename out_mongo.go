@@ -148,7 +148,7 @@ func ProcessAll(ctx context.Context, dec *output.FLBDecoder, processor entry.Pro
 	// Iterate Records
 	for {
 		// Extract Record
-		record, err := entry.GetRecord(dec)
+		ts, record, err := entry.GetRecord(dec)
 		if err != nil {
 			if errors.Is(err, entry.ErrNoRecord) {
 				logger.Debug("Records flushed", map[string]interface{}{
@@ -165,7 +165,8 @@ func ProcessAll(ctx context.Context, dec *output.FLBDecoder, processor entry.Pro
 		total++
 
 		//g.Go(func() error {
-		if err := processor.ProcessRecord(ctx, record); err != nil {
+
+		if err := processor.ProcessRecord(ctx, ts, record); err != nil {
 			return fmt.Errorf("process record: %w", err)
 		}
 

@@ -164,6 +164,7 @@ var _ = Describe("Run fluent-bit", func() {
 				defer GinkgoRecover()
 
 				fmt.Fprintln(GinkgoWriter, "==== FluentBit logs ====")
+
 				err := dockerPool.Client.Logs(docker.LogsOptions{
 					Container:    fluentBit.Container.ID,
 					OutputStream: GinkgoWriter,
