@@ -120,7 +120,7 @@ var _ = Describe("Run fluent-bit", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				return response
-			}, "3s").Should(HaveHTTPStatus(http.StatusOK))
+			}, "10s").Should(HaveHTTPStatus(http.StatusOK))
 
 			Eventually(func() int {
 				response, err := http.Get(fmt.Sprintf("%s/api/v1/metrics", fluentBitURL))
@@ -280,7 +280,7 @@ var _ = Describe("Run fluent-bit", func() {
 					dropped := outputMetrics["dropped_records"]
 
 					return processed + retried + dropped
-				}, "10s").Should(Equal(logEntryCount))
+				}, "5s").Should(Equal(logEntryCount))
 			})
 
 			By("Checking entry state", func() {
