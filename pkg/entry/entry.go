@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/fluent/fluent-bit-go/output"
 )
 
 type Processor interface {
-	ProcessRecord(context.Context, map[interface{}]interface{}) error
+	ProcessRecord(context.Context, time.Time, map[interface{}]interface{}) error
 }
 
 var ErrNoRecord = errors.New("failed to decode entry")
@@ -32,14 +33,15 @@ func (err *ErrRetry) Is(err2 error) bool {
 	return ok
 }
 
-func GetRecord(dec *output.FLBDecoder) (map[interface{}]interface{}, error) {
-	ret, _, record := output.GetRecord(dec)
+func GetRecord(dec *output.FLBDecoder) (time.Time, map[interface{}]interface{}, error) {
+	ret, ts, record := output.GetRecord(dec)
+
 	switch ret {
 	default:
-		return record, nil
+		return ts.(output.FLBTime).Time, record, nil
 	case -1:
-		return nil, ErrNoRecord
+		return time.Time{}, nil, ErrNoRecord
 	case -2:
-		return nil, errors.New("unepxected entry type")
+		return time.Time{}, nil, errors.New("unexpected entry type")
 	}
 }

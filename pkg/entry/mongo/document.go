@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/saagie/fluent-bit-mongo/pkg/parse"
 	mgo "gopkg.in/mgo.v2"
@@ -22,8 +23,12 @@ type Document struct {
 	PlatformId     string        `bson:"platform_id"`
 }
 
-func Convert(record map[interface{}]interface{}) (*Document, error) {
+func Convert(ts time.Time, record map[interface{}]interface{}) (*Document, error) {
 	doc := &Document{}
+
+	if !ts.IsZero() {
+		doc.Time = ts.Format(time.RFC1123)
+	}
 
 	if err := doc.Populate(record); err != nil {
 		if errors.Is(err, parse.ErrKeyNotFound) {
@@ -66,9 +71,13 @@ func (d *Document) Populate(record map[interface{}]interface{}) (err error) {
 		d.Stream = "stdout"
 	}
 
-	d.Time, err = parse.ExtractStringValue(record, TimeKey)
-	if err != nil && !errors.Is(err, parse.ErrKeyNotFound) {
-		return fmt.Errorf("parse %s: %w", TimeKey, err)
+	ts, err := parse.ExtractStringValue(record, TimeKey)
+	if err != nil {
+		if !errors.Is(err, parse.ErrKeyNotFound) {
+			return fmt.Errorf("parse %s: %w", TimeKey, err)
+		}
+	} else {
+		d.Time = ts
 	}
 
 	d.JobExecutionId, err = parse.ExtractStringValue(record, JobExecutionIDKey)

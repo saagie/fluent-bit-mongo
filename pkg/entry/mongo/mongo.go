@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/saagie/fluent-bit-mongo/pkg/entry"
 	"github.com/saagie/fluent-bit-mongo/pkg/log"
@@ -21,13 +22,13 @@ func New(session *mgo.Session) entry.Processor {
 
 const MongoDefaultDB = ""
 
-func (p *processor) ProcessRecord(ctx context.Context, record map[interface{}]interface{}) error {
+func (p *processor) ProcessRecord(ctx context.Context, ts time.Time, record map[interface{}]interface{}) error {
 	logger, err := log.GetLogger(ctx)
 	if err != nil {
 		return fmt.Errorf("get logger: %w", err)
 	}
 
-	logDoc, err := Convert(record)
+	logDoc, err := Convert(ts, record)
 	if err != nil {
 		logger.Error("Failed to convert record to document", map[string]interface{}{
 			"error": err,
