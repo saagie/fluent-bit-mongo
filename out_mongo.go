@@ -14,7 +14,6 @@ import (
 	"github.com/saagie/fluent-bit-mongo/pkg/entry"
 	"github.com/saagie/fluent-bit-mongo/pkg/entry/mongo"
 	"github.com/saagie/fluent-bit-mongo/pkg/log"
-	"golang.org/x/sync/errgroup"
 	mgo "gopkg.in/mgo.v2"
 )
 
@@ -135,8 +134,6 @@ func FLBPluginFlushCtx(ctxPointer, data unsafe.Pointer, length C.int, tag *C.cha
 }
 
 func ProcessAll(ctx context.Context, dec *output.FLBDecoder, processor entry.Processor) error {
-	g, ctx := errgroup.WithContext(ctx)
-
 	// For log purpose
 	startTime := time.Now()
 	total := 0
@@ -164,17 +161,12 @@ func ProcessAll(ctx context.Context, dec *output.FLBDecoder, processor entry.Pro
 
 		total++
 
-		//g.Go(func() error {
-
 		if err := processor.ProcessRecord(ctx, ts, record); err != nil {
 			return fmt.Errorf("process record: %w", err)
 		}
-
-		//return nil
-		//})
 	}
 
-	return g.Wait()
+	return nil
 }
 
 //export FLBPluginExit
