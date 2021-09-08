@@ -39,7 +39,6 @@ var _ = Describe("Extract string value", func() {
 		})
 
 		DescribeTable("A value", func(value interface{}, ok bool) {
-			// TODO BeforeEach ?
 			entry[key] = value
 
 			result, err := parse.ExtractStringValue(entry, key)
