@@ -73,7 +73,7 @@ var _ = Describe("Convert document", func() {
 				Expect(err).To(HaveOccurred())
 			}
 		},
-			Entry("log message", mongo.LogKey, false),
+			Entry("log message", mongo.LogKey, true),
 			Entry("stream", mongo.StreamKey, true),
 			Entry("time", mongo.TimeKey, true),
 			Entry("job ID", mongo.JobExecutionIDKey, false),
