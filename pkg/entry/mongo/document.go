@@ -59,7 +59,11 @@ const (
 func (d *Document) Populate(record map[interface{}]interface{}) (err error) {
 	d.Log, err = parse.ExtractStringValue(record, LogKey)
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", LogKey, err)
+		if !errors.Is(err, parse.ErrKeyNotFound) {
+			return fmt.Errorf("parse %s: %w", StreamKey, err)
+		}
+
+		d.Log = ""
 	}
 
 	d.Stream, err = parse.ExtractStringValue(record, StreamKey)
