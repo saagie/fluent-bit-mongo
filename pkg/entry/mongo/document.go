@@ -23,12 +23,8 @@ type Document struct {
 	PlatformId     string        `bson:"platform_id"`
 }
 
-func Convert(ts time.Time, record map[interface{}]interface{}) (*Document, error) {
+func Convert(_ time.Time, record map[interface{}]interface{}) (*Document, error) {
 	doc := &Document{}
-
-	if !ts.IsZero() {
-		doc.Time = ts.Format(time.RFC1123)
-	}
 
 	if err := doc.Populate(record); err != nil {
 		if errors.Is(err, parse.ErrKeyNotFound) {
