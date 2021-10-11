@@ -1,6 +1,7 @@
 package mongo_test
 
 import (
+	"context"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -8,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/saagie/fluent-bit-mongo/pkg/entry/mongo"
+	"github.com/saagie/fluent-bit-mongo/pkg/log"
 )
 
 func stringEntry(value string) []uint8 {
@@ -22,6 +24,17 @@ func timeEntry(value time.Time) []uint8 {
 }
 
 var _ = Describe("Convert document", func() {
+	var ctx context.Context
+
+	BeforeEach(func() {
+		ctx = context.TODO()
+
+		logger, err := log.New(log.OutputPlugin, "test")
+		Expect(err).ToNot(HaveOccurred())
+
+		ctx = log.WithLogger(ctx, logger)
+	})
+
 	Context("With all fields", func() {
 		var entry map[interface{}]interface{}
 
@@ -38,7 +51,7 @@ var _ = Describe("Convert document", func() {
 		})
 
 		It("Should work", func() {
-			d, err := mongo.Convert(time.Now(), entry)
+			d, err := mongo.Convert(ctx, time.Now(), entry)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(d).ToNot(BeNil())
 
@@ -64,7 +77,7 @@ var _ = Describe("Convert document", func() {
 		DescribeTable("Field", func(field string, ok bool) {
 			delete(entry, field)
 
-			d, err := mongo.Convert(time.Now(), entry)
+			d, err := mongo.Convert(ctx, time.Now(), entry)
 
 			if ok {
 				Expect(err).ToNot(HaveOccurred())

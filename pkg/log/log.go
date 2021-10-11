@@ -68,11 +68,15 @@ func New(t PluginType, name string) (Logger, error) {
 }
 
 func (l *logger) Debug(message string, args map[string]interface{}) {
-	l.log.V(1).Info(message, l.argsToMeta(args)...)
+	if logger := l.log.V(1); logger.Enabled() {
+		logger.Info(message, l.argsToMeta(args)...)
+	}
 }
 
 func (l *logger) Info(message string, args map[string]interface{}) {
-	l.log.Info(message, l.argsToMeta(args)...)
+	if logger := l.log; logger.Enabled() {
+		logger.Info(message, l.argsToMeta(args)...)
+	}
 }
 
 func (l *logger) Error(message string, args map[string]interface{}) {
