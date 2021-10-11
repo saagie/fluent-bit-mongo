@@ -28,6 +28,12 @@ var _ = Describe("Extract string value", func() {
 		It("Should fail", func() {
 			_, err := parse.ExtractStringValue(entry, key)
 			Expect(err).To(HaveOccurred())
+			Expect(err).To(MatchError(&parse.ErrKeyNotFound{
+				LookingFor: key,
+			}))
+			Expect(err).ToNot(MatchError(&parse.ErrKeyNotFound{
+				LookingFor: "other-key",
+			}))
 		})
 	})
 

@@ -28,7 +28,7 @@ func (p *processor) ProcessRecord(ctx context.Context, ts time.Time, record map[
 		return fmt.Errorf("get logger: %w", err)
 	}
 
-	logDoc, err := Convert(ts, record)
+	logDoc, err := Convert(ctx, ts, record)
 	if err != nil {
 		logger.Error("Failed to convert record to document", map[string]interface{}{
 			"error": err,
