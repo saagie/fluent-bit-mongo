@@ -1,16 +1,20 @@
 package mongo
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/saagie/fluent-bit-mongo/pkg/log"
 	"github.com/saagie/fluent-bit-mongo/pkg/parse"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
+
+const TimeFormat = time.RFC3339Nano
 
 type Document struct {
 	Id             bson.ObjectId `bson:"_id,omitempty"`
@@ -23,20 +27,15 @@ type Document struct {
 	PlatformId     string        `bson:"platform_id"`
 }
 
-func Convert(_ time.Time, record map[interface{}]interface{}) (*Document, error) {
+func Convert(ctx context.Context, ts time.Time, record map[interface{}]interface{}) (*Document, error) {
 	doc := &Document{}
 
-	if err := doc.Populate(record); err != nil {
-		if errors.Is(err, parse.ErrKeyNotFound) {
-			keys := make([]interface{}, 0, len(record))
-			for key := range record {
-				keys = append(keys, key)
-			}
+	if !ts.IsZero() {
+		doc.Time = ts.Format(TimeFormat)
+	}
 
-			return nil, fmt.Errorf("keys %v: %w", keys, err)
-		}
-
-		return nil, err
+	if err := doc.Populate(ctx, record); err != nil {
+		return nil, fmt.Errorf("populate document: %w", err)
 	}
 
 	return doc, nil
@@ -52,30 +51,47 @@ const (
 	PlatformIDKey     = "platform_id"
 )
 
-func (d *Document) Populate(record map[interface{}]interface{}) (err error) {
+func (d *Document) Populate(ctx context.Context, record map[interface{}]interface{}) (err error) {
+	logger, err := log.GetLogger(ctx)
+	if err != nil {
+		return fmt.Errorf("get logger: %w", err)
+	}
+
 	d.Log, err = parse.ExtractStringValue(record, LogKey)
 	if err != nil {
-		if !errors.Is(err, parse.ErrKeyNotFound) {
-			return fmt.Errorf("parse %s: %w", StreamKey, err)
+		if !errors.Is(err, &parse.ErrKeyNotFound{}) {
+			return fmt.Errorf("parse %s: %w", LogKey, err)
 		}
+
+		logger.Info("Key not found", map[string]interface{}{
+			"error": err,
+		})
 
 		d.Log = ""
 	}
 
 	d.Stream, err = parse.ExtractStringValue(record, StreamKey)
 	if err != nil {
-		if !errors.Is(err, parse.ErrKeyNotFound) {
+		if !errors.Is(err, &parse.ErrKeyNotFound{}) {
 			return fmt.Errorf("parse %s: %w", StreamKey, err)
 		}
+
+		logger.Info("Key not found, use stdout", map[string]interface{}{
+			"error": err,
+		})
 
 		d.Stream = "stdout"
 	}
 
 	ts, err := parse.ExtractStringValue(record, TimeKey)
 	if err != nil {
-		if !errors.Is(err, parse.ErrKeyNotFound) {
+		if !errors.Is(err, &parse.ErrKeyNotFound{}) {
 			return fmt.Errorf("parse %s: %w", TimeKey, err)
 		}
+
+		logger.Info("Key not found", map[string]interface{}{
+			"error": err,
+		})
 	} else {
 		d.Time = ts
 	}
