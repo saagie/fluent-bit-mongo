@@ -35,7 +35,7 @@ var _ = Describe("Convert document", func() {
 		ctx = log.WithLogger(ctx, logger)
 	})
 
-	Context("With all fields", func() {
+	Describe("Job with all fields", func() {
 		var entry map[interface{}]interface{}
 
 		BeforeEach(func() {
@@ -54,8 +54,39 @@ var _ = Describe("Convert document", func() {
 			d, err := mongo.Convert(ctx, time.Now(), entry)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(d).ToNot(BeNil())
+			Expect(d).To(BeAssignableToTypeOf(&mongo.JobLogDocument{}))
+			document := d.(*mongo.JobLogDocument)
+			Expect(document.JobExecutionId).To(BeEquivalentTo(stringEntry("jobExecutionID")))
+			Expect(document.Customer).To(BeEquivalentTo(entry[mongo.CustomerKey]))
+		})
+	})
 
-			Expect(d.Customer).To(BeEquivalentTo(entry[mongo.CustomerKey]))
+	Describe("App with all fields", func() {
+		var entry map[interface{}]interface{}
+
+		BeforeEach(func() {
+			entry = map[interface{}]interface{}{
+				mongo.LogKey:            stringEntry("log"),
+				mongo.StreamKey:         stringEntry("stream"),
+				mongo.TimeKey:           timeEntry(time.Now()),
+				mongo.AppIDKey:          stringEntry("appID"),
+				mongo.AppExecutionIDKey: stringEntry("appExecutionID"),
+				mongo.ContainerIDKey:    stringEntry("containerID"),
+				mongo.ProjectIDKey:      stringEntry("projectID"),
+				mongo.CustomerKey:       stringEntry("customer"),
+				mongo.PlatformIDKey:     stringEntry("platformID"),
+			}
+		})
+
+		It("Should work", func() {
+			d, err := mongo.Convert(ctx, time.Now(), entry)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(d).ToNot(BeNil())
+			Expect(d).To(BeAssignableToTypeOf(&mongo.AppLogDocument{}))
+			document := d.(*mongo.AppLogDocument)
+			Expect(document.AppExecutionId).To(BeEquivalentTo(stringEntry("appExecutionID")))
+			Expect(document.ContainerId).To(BeEquivalentTo(stringEntry("containerID")))
+			Expect(document.Customer).To(BeEquivalentTo(entry[mongo.CustomerKey]))
 		})
 	})
 
