@@ -16,25 +16,49 @@ import (
 
 const TimeFormat = time.RFC3339Nano
 
-type Document struct {
-	Id             bson.ObjectId `bson:"_id,omitempty"`
-	Log            string        `bson:"log"`
-	Stream         string        `bson:"stream"`
-	Time           string        `bson:"time"`
-	JobExecutionId string        `bson:"job_execution_id"`
-	ProjectId      string        `bson:"project_id"`
-	Customer       string        `bson:"customer"`
-	PlatformId     string        `bson:"platform_id"`
+type LogEntry interface {
+	Populate(ctx context.Context, ts time.Time, record map[interface{}]interface{}) error
+	CollectionName() string
+	SaveTo(collection *mgo.Collection) error
+	GetID() bson.ObjectId
 }
 
-func Convert(ctx context.Context, ts time.Time, record map[interface{}]interface{}) (*Document, error) {
-	doc := &Document{}
+type LogDocument struct {
+	Id         bson.ObjectId `bson:"_id,omitempty"`
+	Log        string        `bson:"log"`
+	Stream     string        `bson:"stream"`
+	Time       string        `bson:"time"`
+	ProjectId  string        `bson:"project_id"`
+	Customer   string        `bson:"customer"`
+	PlatformId string        `bson:"platform_id"`
+}
 
-	if !ts.IsZero() {
-		doc.Time = ts.Format(TimeFormat)
+func (d *LogDocument) GetID() bson.ObjectId {
+	return d.Id
+}
+
+type JobLogDocument struct {
+	LogDocument    `bson:",inline"`
+	JobExecutionId string `bson:"job_execution_id"`
+}
+
+type AppLogDocument struct {
+	LogDocument    `bson:",inline"`
+	AppExecutionId string `bson:"app_execution_id"`
+	AppId          string `bson:"app_id"`
+	ContainerId    string `bson:"container_id"`
+}
+
+func Convert(ctx context.Context, ts time.Time, record map[interface{}]interface{}) (LogEntry, error) {
+	var doc LogEntry
+
+	if isJobLog(record) {
+		doc = &JobLogDocument{}
+	} else {
+		doc = &AppLogDocument{}
 	}
 
-	if err := doc.Populate(ctx, record); err != nil {
+	if err := doc.Populate(ctx, ts, record); err != nil {
 		return nil, fmt.Errorf("populate document: %w", err)
 	}
 
@@ -46,12 +70,58 @@ const (
 	StreamKey         = "stream"
 	TimeKey           = "time"
 	JobExecutionIDKey = "job_execution_id"
+	ContainerIDKey    = "container_id"
+	AppExecutionIDKey = "app_execution_id"
+	AppIDKey          = "app_id"
 	ProjectIDKey      = "project_id"
 	CustomerKey       = "customer"
 	PlatformIDKey     = "platform_id"
 )
 
-func (d *Document) Populate(ctx context.Context, record map[interface{}]interface{}) (err error) {
+func isJobLog(record map[interface{}]interface{}) bool {
+	_, err := parse.ExtractStringValue(record, JobExecutionIDKey)
+	return err == nil
+}
+
+func (d *AppLogDocument) Populate(ctx context.Context, ts time.Time, record map[interface{}]interface{}) error {
+	err := d.LogDocument.Populate(ctx, ts, record)
+	if err != nil {
+		return fmt.Errorf("populate: %w", err)
+	}
+
+	d.AppExecutionId, err = parse.ExtractStringValue(record, AppExecutionIDKey)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", AppExecutionIDKey, err)
+	}
+
+	d.AppId, err = parse.ExtractStringValue(record, AppIDKey)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", AppIDKey, err)
+	}
+
+	d.ContainerId, err = parse.ExtractStringValue(record, ContainerIDKey)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", ContainerIDKey, err)
+	}
+
+	return d.generateObjectID()
+}
+
+func (d *JobLogDocument) Populate(ctx context.Context, ts time.Time, record map[interface{}]interface{}) error {
+	err := d.LogDocument.Populate(ctx, ts, record)
+	if err != nil {
+		return fmt.Errorf("populate: %w", err)
+	}
+
+	d.JobExecutionId, err = parse.ExtractStringValue(record, JobExecutionIDKey)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", JobExecutionIDKey, err)
+	}
+
+	return d.generateObjectID()
+}
+
+func (d *LogDocument) Populate(ctx context.Context, ts time.Time, record map[interface{}]interface{}) error {
 	logger, err := log.GetLogger(ctx)
 	if err != nil {
 		return fmt.Errorf("get logger: %w", err)
@@ -87,7 +157,7 @@ func (d *Document) Populate(ctx context.Context, record map[interface{}]interfac
 		d.Stream = "stdout"
 	}
 
-	ts, err := parse.ExtractStringValue(record, TimeKey)
+	recordTime, err := parse.ExtractStringValue(record, TimeKey)
 	if err != nil {
 		if !errors.Is(err, &parse.ErrKeyNotFound{
 			LookingFor: TimeKey,
@@ -95,16 +165,15 @@ func (d *Document) Populate(ctx context.Context, record map[interface{}]interfac
 			return fmt.Errorf("parse %s: %w", TimeKey, err)
 		}
 
-		logger.Debug("Key not found", map[string]interface{}{
+		logger.Debug("Key not found, use value from fluentbit processor", map[string]interface{}{
 			"error": err,
 		})
-	} else {
-		d.Time = ts
-	}
 
-	d.JobExecutionId, err = parse.ExtractStringValue(record, JobExecutionIDKey)
-	if err != nil {
-		return fmt.Errorf("parse %s: %w", JobExecutionIDKey, err)
+		if !ts.IsZero() {
+			d.Time = ts.Format(TimeFormat)
+		}
+	} else {
+		d.Time = recordTime
 	}
 
 	d.ProjectId, err = parse.ExtractStringValue(record, ProjectIDKey)
@@ -122,10 +191,10 @@ func (d *Document) Populate(ctx context.Context, record map[interface{}]interfac
 		return fmt.Errorf("parse %s: %w", PlatformIDKey, err)
 	}
 
-	return d.generateObjectID()
+	return nil
 }
 
-func (d *Document) generateObjectID() error {
+func (d *LogDocument) generateObjectID() error {
 	logJson, err := json.Marshal(d)
 	if err != nil {
 		return err
@@ -144,16 +213,30 @@ func (d *Document) generateObjectID() error {
 	return nil
 }
 
-func (d *Document) CollectionName() string {
+func (d *LogDocument) CollectionName() string {
 	return strings.Replace(fmt.Sprintf("%s_%s_%s", d.Customer, d.PlatformId, d.ProjectId), "-", "_", -1)
 }
 
-func (d *Document) SaveTo(collection *mgo.Collection) error {
+func (d *JobLogDocument) SaveTo(collection *mgo.Collection) error {
 	if _, err := collection.UpsertId(d.Id, d); err != nil {
 		return fmt.Errorf("upsert %s: %w", d.Id, err)
 	}
 
 	indexes := []string{"job_execution_id", "time"}
+
+	if err := collection.EnsureIndexKey(indexes...); err != nil {
+		return fmt.Errorf("ensure indexes %v: %w", indexes, err)
+	}
+
+	return nil
+}
+
+func (d *AppLogDocument) SaveTo(collection *mgo.Collection) error {
+	if _, err := collection.UpsertId(d.Id, d); err != nil {
+		return fmt.Errorf("upsert %s: %w", d.Id, err)
+	}
+
+	indexes := []string{"app_execution_id", "container_id", "time"}
 
 	if err := collection.EnsureIndexKey(indexes...); err != nil {
 		return fmt.Errorf("ensure indexes %v: %w", indexes, err)

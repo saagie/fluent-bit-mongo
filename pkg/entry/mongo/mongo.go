@@ -40,7 +40,7 @@ func (p *processor) ProcessRecord(ctx context.Context, ts time.Time, record map[
 	collection := p.mongoSession.DB(MongoDefaultDB).C(logDoc.CollectionName())
 
 	logger.Debug("Flushing to mongo", map[string]interface{}{
-		"document.id": logDoc.Id,
+		"document.id": logDoc.GetID(),
 	})
 
 	if err := logDoc.SaveTo(collection); err != nil {
