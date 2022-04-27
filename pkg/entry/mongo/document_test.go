@@ -126,4 +126,43 @@ var _ = Describe("Convert document", func() {
 			Entry("platform ID", mongo.PlatformIDKey, false),
 		)
 	})
+
+	Context("With \\n end of logs", func() {
+		var entry map[interface{}]interface{}
+
+		BeforeEach(func() {
+			entry = map[interface{}]interface{}{
+				mongo.StreamKey:         stringEntry("stream"),
+				mongo.TimeKey:           timeEntry(time.Now()),
+				mongo.AppIDKey:          stringEntry("appID"),
+				mongo.AppExecutionIDKey: stringEntry("appExecutionID"),
+				mongo.ContainerIDKey:    stringEntry("containerID"),
+				mongo.ProjectIDKey:      stringEntry("projectID"),
+				mongo.CustomerKey:       stringEntry("customer"),
+				mongo.PlatformIDKey:     stringEntry("platformID"),
+			}
+		})
+
+		It("Should remove \\n from log end", func() {
+			entry[mongo.LogKey] = stringEntry("log\n")
+
+			d, err := mongo.Convert(ctx, time.Now(), entry)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(d).ToNot(BeNil())
+			Expect(d).To(BeAssignableToTypeOf(&mongo.AppLogDocument{}))
+			document := d.(*mongo.AppLogDocument)
+			Expect(document.Log).To(BeEquivalentTo(stringEntry("log")))
+		})
+
+		It("Should not change content log without \\n", func() {
+			entry[mongo.LogKey] = stringEntry("log")
+
+			d, err := mongo.Convert(ctx, time.Now(), entry)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(d).ToNot(BeNil())
+			Expect(d).To(BeAssignableToTypeOf(&mongo.AppLogDocument{}))
+			document := d.(*mongo.AppLogDocument)
+			Expect(document.Log).To(BeEquivalentTo(stringEntry("log")))
+		})
+	})
 })

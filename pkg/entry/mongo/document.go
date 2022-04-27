@@ -121,13 +121,17 @@ func (d *JobLogDocument) Populate(ctx context.Context, ts time.Time, record map[
 	return d.generateObjectID()
 }
 
+func cleanLogContent(content string) string {
+	return strings.TrimSuffix(content, "\n")
+}
+
 func (d *LogDocument) Populate(ctx context.Context, ts time.Time, record map[interface{}]interface{}) error {
 	logger, err := log.GetLogger(ctx)
 	if err != nil {
 		return fmt.Errorf("get logger: %w", err)
 	}
 
-	d.Log, err = parse.ExtractStringValue(record, LogKey)
+	logContent, err := parse.ExtractStringValue(record, LogKey)
 	if err != nil {
 		if !errors.Is(err, &parse.ErrKeyNotFound{
 			LookingFor: LogKey,
@@ -141,6 +145,7 @@ func (d *LogDocument) Populate(ctx context.Context, ts time.Time, record map[int
 
 		d.Log = ""
 	}
+	d.Log = cleanLogContent(logContent)
 
 	d.Stream, err = parse.ExtractStringValue(record, StreamKey)
 	if err != nil {
