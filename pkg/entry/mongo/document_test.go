@@ -61,6 +61,35 @@ var _ = Describe("Convert document", func() {
 		})
 	})
 
+	Describe("Job with all fields + orchestration", func() {
+		var entry map[interface{}]interface{}
+
+		BeforeEach(func() {
+			entry = map[interface{}]interface{}{
+				mongo.LogKey:            stringEntry("[orchestration]2022-06-08 09:56:36.183 - Attempting to start job."),
+				mongo.StreamKey:         stringEntry("stream"),
+				mongo.TimeKey:           timeEntry(time.Now()),
+				mongo.JobExecutionIDKey: stringEntry("jobExecutionID"),
+				mongo.ProjectIDKey:      stringEntry("projectID"),
+				mongo.CustomerKey:       stringEntry("customer"),
+				mongo.PlatformIDKey:     stringEntry("platformID"),
+				mongo.LogPrefixKey:      stringEntry("orchestration"),
+			}
+		})
+
+		It("Should work", func() {
+			d, err := mongo.Convert(ctx, time.Now(), entry)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(d).ToNot(BeNil())
+			Expect(d).To(BeAssignableToTypeOf(&mongo.JobLogDocument{}))
+			document := d.(*mongo.JobLogDocument)
+			Expect(document.JobExecutionId).To(BeEquivalentTo(stringEntry("jobExecutionID")))
+			Expect(document.Customer).To(BeEquivalentTo(entry[mongo.CustomerKey]))
+			Expect(document.Stream).To(BeEquivalentTo("orchestration_stream"))
+			Expect(document.Log).To(Equal("2022-06-08 09:56:36.183 - Attempting to start job."))
+		})
+	})
+
 	Describe("App with all fields", func() {
 		var entry map[interface{}]interface{}
 

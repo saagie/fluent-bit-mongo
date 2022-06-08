@@ -69,6 +69,7 @@ const (
 	LogKey            = "log"
 	StreamKey         = "stream"
 	TimeKey           = "time"
+	LogPrefixKey      = "log_prefix"
 	JobExecutionIDKey = "job_execution_id"
 	ContainerIDKey    = "container_id"
 	AppExecutionIDKey = "app_execution_id"
@@ -147,6 +148,19 @@ func (d *LogDocument) Populate(ctx context.Context, ts time.Time, record map[int
 	}
 	d.Log = cleanLogContent(logContent)
 
+	logPrefix, err := parse.ExtractStringValue(record, LogPrefixKey)
+	if err != nil {
+		if !errors.Is(err, &parse.ErrKeyNotFound{
+			LookingFor: LogPrefixKey,
+		}) {
+			return fmt.Errorf("parse %s: %w", LogPrefixKey, err)
+		}
+
+		logger.Debug("Key not found, log_prefix is inactivated", map[string]interface{}{
+			"error": err,
+		})
+	}
+
 	d.Stream, err = parse.ExtractStringValue(record, StreamKey)
 	if err != nil {
 		if !errors.Is(err, &parse.ErrKeyNotFound{
@@ -158,8 +172,15 @@ func (d *LogDocument) Populate(ctx context.Context, ts time.Time, record map[int
 		logger.Debug("Key not found, use stdout", map[string]interface{}{
 			"error": err,
 		})
-
 		d.Stream = "stdout"
+	}
+
+	if logPrefix != "" {
+		logPrefixPattern := "[" + logPrefix + "]"
+		if strings.HasPrefix(logContent, logPrefixPattern) {
+			d.Stream = logPrefix + "_" + d.Stream
+			d.Log = strings.Replace(d.Log, logPrefixPattern, "", 1)
+		}
 	}
 
 	recordTime, err := parse.ExtractStringValue(record, TimeKey)
