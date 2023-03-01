@@ -119,6 +119,36 @@ var _ = Describe("Convert document", func() {
 		})
 	})
 
+	Describe("ConditionPipeline with all fields", func() {
+		var entry map[interface{}]interface{}
+
+		BeforeEach(func() {
+			entry = map[interface{}]interface{}{
+				mongo.LogKey:                  stringEntry("log"),
+				mongo.StreamKey:               stringEntry("stream"),
+				mongo.TimeKey:                 timeEntry(time.Now()),
+				mongo.ConditionExecutionIDKey: stringEntry("conditionExecutionID"),
+				mongo.ConditionNodeIDKey:      stringEntry("conditionNodeID"),
+				mongo.PipelineExecutionIDKey:  stringEntry("pipelineExecutionID"),
+				mongo.ProjectIDKey:            stringEntry("projectID"),
+				mongo.CustomerKey:             stringEntry("customer"),
+				mongo.PlatformIDKey:           stringEntry("platformID"),
+			}
+		})
+
+		It("Should work", func() {
+			d, err := mongo.Convert(ctx, time.Now(), entry)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(d).ToNot(BeNil())
+			Expect(d).To(BeAssignableToTypeOf(&mongo.ConditionPipelineLogDocument{}))
+			document := d.(*mongo.ConditionPipelineLogDocument)
+			Expect(document.ConditionExecutionId).To(BeEquivalentTo(stringEntry("conditionExecutionID")))
+			Expect(document.ConditionNodeId).To(BeEquivalentTo(stringEntry("conditionNodeID")))
+			Expect(document.PipelineExecutionId).To(BeEquivalentTo(stringEntry("pipelineExecutionID")))
+			Expect(document.Customer).To(BeEquivalentTo(entry[mongo.CustomerKey]))
+		})
+	})
+
 	Context("With missing field", func() {
 		var entry map[interface{}]interface{}
 

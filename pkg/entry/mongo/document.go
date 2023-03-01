@@ -49,13 +49,22 @@ type AppLogDocument struct {
 	ContainerId    string `bson:"container_id"`
 }
 
+type ConditionPipelineLogDocument struct {
+	LogDocument          `bson:",inline"`
+	ConditionExecutionId string `bson:"condition_execution_id"`
+	ConditionNodeId      string `bson:"condition_node_id"`
+	PipelineExecutionId  string `bson:"pipeline_execution_id"`
+}
+
 func Convert(ctx context.Context, ts time.Time, record map[interface{}]interface{}) (LogEntry, error) {
 	var doc LogEntry
 
 	if isJobLog(record) {
 		doc = &JobLogDocument{}
-	} else {
+	} else if isAppLog(record) {
 		doc = &AppLogDocument{}
+	} else {
+		doc = &ConditionPipelineLogDocument{}
 	}
 
 	if err := doc.Populate(ctx, ts, record); err != nil {
@@ -66,21 +75,29 @@ func Convert(ctx context.Context, ts time.Time, record map[interface{}]interface
 }
 
 const (
-	LogKey            = "log"
-	StreamKey         = "stream"
-	TimeKey           = "time"
-	LogPrefixKey      = "log_prefix"
-	JobExecutionIDKey = "job_execution_id"
-	ContainerIDKey    = "container_id"
-	AppExecutionIDKey = "app_execution_id"
-	AppIDKey          = "app_id"
-	ProjectIDKey      = "project_id"
-	CustomerKey       = "customer"
-	PlatformIDKey     = "platform_id"
+	LogKey                  = "log"
+	StreamKey               = "stream"
+	TimeKey                 = "time"
+	LogPrefixKey            = "log_prefix"
+	JobExecutionIDKey       = "job_execution_id"
+	ContainerIDKey          = "container_id"
+	AppExecutionIDKey       = "app_execution_id"
+	AppIDKey                = "app_id"
+	ConditionExecutionIDKey = "condition_execution_id"
+	ConditionNodeIDKey      = "condition_node_id"
+	PipelineExecutionIDKey  = "pipeline_execution_id"
+	ProjectIDKey            = "project_id"
+	CustomerKey             = "customer"
+	PlatformIDKey           = "platform_id"
 )
 
 func isJobLog(record map[interface{}]interface{}) bool {
 	_, err := parse.ExtractStringValue(record, JobExecutionIDKey)
+	return err == nil
+}
+
+func isAppLog(record map[interface{}]interface{}) bool {
+	_, err := parse.ExtractStringValue(record, AppExecutionIDKey)
 	return err == nil
 }
 
@@ -117,6 +134,30 @@ func (d *JobLogDocument) Populate(ctx context.Context, ts time.Time, record map[
 	d.JobExecutionId, err = parse.ExtractStringValue(record, JobExecutionIDKey)
 	if err != nil {
 		return fmt.Errorf("parse %s: %w", JobExecutionIDKey, err)
+	}
+
+	return d.generateObjectID()
+}
+
+func (d *ConditionPipelineLogDocument) Populate(ctx context.Context, ts time.Time, record map[interface{}]interface{}) error {
+	err := d.LogDocument.Populate(ctx, ts, record)
+	if err != nil {
+		return fmt.Errorf("populate: %w", err)
+	}
+
+	d.ConditionExecutionId, err = parse.ExtractStringValue(record, ConditionExecutionIDKey)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", ConditionExecutionIDKey, err)
+	}
+
+	d.ConditionNodeId, err = parse.ExtractStringValue(record, ConditionNodeIDKey)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", ConditionNodeIDKey, err)
+	}
+
+	d.PipelineExecutionId, err = parse.ExtractStringValue(record, PipelineExecutionIDKey)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", PipelineExecutionIDKey, err)
 	}
 
 	return d.generateObjectID()
@@ -263,6 +304,20 @@ func (d *AppLogDocument) SaveTo(collection *mgo.Collection) error {
 	}
 
 	indexes := []string{"app_execution_id", "container_id", "time"}
+
+	if err := collection.EnsureIndexKey(indexes...); err != nil {
+		return fmt.Errorf("ensure indexes %v: %w", indexes, err)
+	}
+
+	return nil
+}
+
+func (d *ConditionPipelineLogDocument) SaveTo(collection *mgo.Collection) error {
+	if _, err := collection.UpsertId(d.Id, d); err != nil {
+		return fmt.Errorf("upsert %s: %w", d.Id, err)
+	}
+
+	indexes := []string{"condition_execution_id", "time"}
 
 	if err := collection.EnsureIndexKey(indexes...); err != nil {
 		return fmt.Errorf("ensure indexes %v: %w", indexes, err)
