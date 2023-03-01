@@ -3,7 +3,7 @@ package main_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -103,7 +103,7 @@ var _ = Describe("Run fluent-bit", func() {
 			}, "10s").Should(Succeed())
 			Expect(response).To(HaveHTTPStatus(http.StatusOK))
 
-			body, err := ioutil.ReadAll(response.Body)
+			body, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(response.Body.Close()).To(Succeed())
@@ -127,7 +127,7 @@ var _ = Describe("Run fluent-bit", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).To(HaveHTTPStatus(http.StatusOK))
 
-				body, err := ioutil.ReadAll(response.Body)
+				body, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(response.Body.Close()).To(Succeed())
@@ -259,7 +259,7 @@ var _ = Describe("Run fluent-bit", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response).To(HaveHTTPStatus(http.StatusOK))
 
-					body, err := ioutil.ReadAll(response.Body)
+					body, err := io.ReadAll(response.Body)
 					Expect(err).ToNot(HaveOccurred())
 
 					Expect(response.Body.Close()).To(Succeed())
@@ -287,7 +287,7 @@ var _ = Describe("Run fluent-bit", func() {
 				response, err := http.Get(fmt.Sprintf("%s/api/v1/metrics", fluentBitURL))
 				Expect(err).ToNot(HaveOccurred())
 
-				body, err := ioutil.ReadAll(response.Body)
+				body, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(response.Body.Close()).To(Succeed())

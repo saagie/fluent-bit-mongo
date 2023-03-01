@@ -1,4 +1,4 @@
-FROM golang:1.16 as builder
+FROM golang:1.19 as builder
 
 ARG GO_FILE=out_mongo
 
@@ -9,7 +9,7 @@ RUN go build -buildmode=c-shared -o /go/bin/out_mongo.so -- *.go
 
 ########################################################
 
-FROM fluent/fluent-bit:1.8.3
+FROM fluent/fluent-bit:2.0.8
 
 COPY --from=builder /go/bin/out_mongo.so /out_mongo.so
 
